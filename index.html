@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vantor — Consulta de Precios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="data.js"></script>
+<style>
+  :root {
+    --teal: #2A7479;
+    --teal-bright: #3A8F95;
+    --teal-dark: #1E5A5E;
+    --bg: #0E1A1F;
+    --bg-card: #152329;
+    --bg-input: #1C2D33;
+    --border: #2A3F46;
+    --text: #F5F5F5;
+    --text-muted: #9CAEB4;
+    --green: #3EBB6F;
+    --red: #E05555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px 60px;
+  }
+  .logo {
+    text-align: center;
+    margin-bottom: 40px;
+    user-select: none;
+  }
+  .logo .brand {
+    font-size: clamp(48px, 8vw, 88px);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--teal);
+    line-height: 1;
+  }
+  .logo .tagline {
+    font-size: clamp(10px, 1.4vw, 14px);
+    font-weight: 400;
+    letter-spacing: 0.35em;
+    color: var(--text);
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+  .card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--teal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .field { margin-bottom: 20px; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  input, select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--text);
+    transition: all 0.2s;
+    outline: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--teal-bright);
+    box-shadow: 0 0 0 3px rgba(58,143,149,0.15);
+  }
+  input[readonly] {
+    background: transparent;
+    border-color: transparent;
+    padding-left: 0;
+    font-weight: 500;
+    color: var(--text);
+    cursor: default;
+  }
+  .row-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .outputs {
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+  .output-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--teal);
+    transition: all 0.2s;
+  }
+  .output-row.highlight {
+    border-left-color: var(--teal-bright);
+    background: linear-gradient(90deg, rgba(58,143,149,0.12), var(--bg-input));
+  }
+  .output-label {
+    display: flex;
+    flex-direction: column;
+  }
+  .output-label .abbr {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal-bright);
+    letter-spacing: 0.08em;
+  }
+  .output-label .full {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .output-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .empty-value { color: var(--text-muted); font-weight: 400; font-size: 15px; }
+
+  /* Admin panel */
+  .admin-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+  .admin-toggle:hover {
+    border-color: var(--teal);
+    color: var(--teal-bright);
+  }
+  .admin-panel {
+    display: none;
+    width: 100%;
+    max-width: 640px;
+  }
+  .admin-panel.open { display: block; }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--teal-bright);
+    background: rgba(58,143,149,0.06);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .drop-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    color: var(--teal);
+  }
+  .drop-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .drop-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .status {
+    margin-top: 16px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+  }
+  .status.success {
+    display: block;
+    background: rgba(62,187,111,0.1);
+    border: 1px solid rgba(62,187,111,0.3);
+    color: var(--green);
+  }
+  .status.error {
+    display: block;
+    background: rgba(224,85,85,0.1);
+    border: 1px solid rgba(224,85,85,0.3);
+    color: var(--red);
+  }
+  .instructions {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .instructions h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+  .instructions ol {
+    list-style: none;
+    counter-reset: steps;
+    padding: 0;
+  }
+  .instructions li {
+    counter-increment: steps;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    padding-left: 32px;
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .instructions li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    background: var(--teal-dark);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    top: 1px;
+    text-align: center;
+    line-height: 22px;
+  }
+
+  .product-count {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  .footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 520px) {
+    .card { padding: 24px; }
+    .row-info { grid-template-columns: 1fr; gap: 16px; }
+    .output-value { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="logo">
+    <div class="brand">VANTOR</div>
+    <div class="tagline">Maquinas &amp; Herramientas</div>
+  </div>
+
+  <!-- Main consultation card -->
+  <div class="card">
+    <div class="card-title">Consulta de Precios</div>
+    <div class="product-count" id="productCount"></div>
+
+    <div class="field">
+      <label for="producto">Producto</label>
+      <input list="productos-list" id="producto" placeholder="Escriba para buscar..." autocomplete="off">
+      <datalist id="productos-list"></datalist>
+    </div>
+
+    <div class="row-info">
+      <div class="field">
+        <label>Marca</label>
+        <input type="text" id="marca" readonly placeholder="—">
+      </div>
+      <div class="field">
+        <label>Código</label>
+        <input type="text" id="codigo" readonly placeholder="—">
+      </div>
+    </div>
+
+    <div class="outputs">
+      <div class="output-row">
+        <div class="output-label">
+          <span class="abbr">P.N.P.</span>
+          <span class="full">Precio Negro Público</span>
+        </div>
+        <div class="output-value empty-value" id="pnp">—</div>
+      </div>
+      <div class="output-row highlight">
+        <div class="output-label">
+          <span class="abbr">P.F.P.</span>
+          <span class="full">Precio Facturado Público</span>
+        </div>
+        <div class="output-value empty-value" id="pfp">—</div>
+      </div>
+      <div class="output-row">
+        <div class="output-label">
+          <span class="abbr">GCIA.</span>
+          <span class="full">Ganancia</span>
+        </div>
+        <div class="output-value empty-value" id="gcia">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin toggle -->
+  <button class="admin-toggle" id="adminToggle">⚙ Actualizar Precios</button>
+
+  <!-- Admin panel -->
+  <div class="admin-panel" id="adminPanel">
+    <div class="card">
+      <div class="card-title">Actualizar Base de Datos</div>
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <span class="drop-icon">📊</span>
+        <div class="drop-text">Arrastrá tu Excel aquí o hacé click para seleccionar</div>
+        <div class="drop-hint">Debe tener la hoja "Por Publicar" con las columnas: Código, Descripción, Marca, Precio NEGRO Publico, Ganancia, Precio Facturado Publico</div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="instructions">
+        <h3>¿Cómo funciona?</h3>
+        <ol>
+          <li>Editá los precios en tu Excel (hoja "Por Publicar")</li>
+          <li>Subí el archivo Excel acá arriba</li>
+          <li>Se descargará un nuevo archivo <strong>data.js</strong></li>
+          <li>Reemplazá el <strong>data.js</strong> viejo en la carpeta por el nuevo</li>
+          <li>Recargá la página (F5) y listo — precios actualizados</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Vantor © Sistema de consulta interna</div>
+
+<script>
+  // ── Formateo ──
+  const fmt = new Intl.NumberFormat('es-AR', {
+    style: 'currency', currency: 'ARS',
+    minimumFractionDigits: 0, maximumFractionDigits: 0
+  });
+  const money = n => fmt.format(Math.ceil(n));
+
+  // ── Cargar productos (desde data.js) ──
+  const byDesc = new Map();
+  PRODUCTS.forEach(p => byDesc.set(p.descripcion, p));
+
+  const datalist = document.getElementById('productos-list');
+  function populateDatalist() {
+    datalist.innerHTML = '';
+    PRODUCTS.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.descripcion;
+      datalist.appendChild(o);
+    });
+    document.getElementById('productCount').textContent = PRODUCTS.length + ' productos cargados';
+  }
+  populateDatalist();
+
+  // ── Consulta ──
+  const input = document.getElementById('producto');
+  const marcaEl = document.getElementById('marca');
+  const codigoEl = document.getElementById('codigo');
+  const pnpEl = document.getElementById('pnp');
+  const pfpEl = document.getElementById('pfp');
+  const gciaEl = document.getElementById('gcia');
+
+  function clear() {
+    marcaEl.value = '';
+    codigoEl.value = '';
+    [pnpEl, pfpEl, gciaEl].forEach(el => { el.textContent = '—'; el.classList.add('empty-value'); });
+  }
+  function update() {
+    const p = byDesc.get(input.value);
+    if (!p) { clear(); return; }
+    marcaEl.value = p.marca;
+    codigoEl.value = p.codigo;
+    pnpEl.textContent = money(p.pnp);
+    pfpEl.textContent = money(p.pfp);
+    gciaEl.textContent = money(p.gcia);
+    [pnpEl, pfpEl, gciaEl].forEach(el => el.classList.remove('empty-value'));
+  }
+  input.addEventListener('input', update);
+  input.addEventListener('change', update);
+
+  // ── Admin panel toggle ──
+  document.getElementById('adminToggle').addEventListener('click', () => {
+    document.getElementById('adminPanel').classList.toggle('open');
+  });
+
+  // ── Drop zone ──
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const statusEl = document.getElementById('status');
+
+  ['dragenter','dragover'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', ev => {
+    const file = ev.dataTransfer.files[0];
+    if (file) processFile(file);
+  });
+  fileInput.addEventListener('change', ev => {
+    const file = ev.target.files[0];
+    if (file) processFile(file);
+  });
+
+  function processFile(file) {
+    statusEl.className = 'status';
+    statusEl.style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        // Find "Por Publicar" sheet
+        const sheetName = workbook.SheetNames.find(n => n.toLowerCase().includes('por publicar'));
+        if (!sheetName) {
+          showStatus('error', 'No se encontró la hoja "Por Publicar" en el archivo.');
+          return;
+        }
+
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        if (rows.length === 0) {
+          showStatus('error', 'La hoja "Por Publicar" está vacía.');
+          return;
+        }
+
+        // Map columns
+        const products = [];
+        for (const r of rows) {
+          const desc = (r['Descripción'] || '').toString().trim();
+          if (!desc) continue;
+          products.push({
+            codigo: (r['Código'] || '').toString(),
+            descripcion: desc,
+            marca: (r['Marca'] || '').toString(),
+            pnp: parseFloat(r['Precio NEGRO Publico']) || 0,
+            pfp: parseFloat(r['Precio Facturado Publico']) || 0,
+            gcia: parseFloat(r['Ganancia']) || 0,
+          });
+        }
+
+        if (products.length === 0) {
+          showStatus('error', 'No se encontraron productos válidos. Verificá los nombres de las columnas.');
+          return;
+        }
+
+        // Generate data.js content
+        const jsContent = 'const PRODUCTS = ' + JSON.stringify(products, null, 0) + ';';
+
+        // Trigger download
+        const blob = new Blob([jsContent], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'data.js';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showStatus('success', '✓ ' + products.length + ' productos exportados. Reemplazá el archivo data.js en la carpeta y recargá la página.');
+
+      } catch(err) {
+        showStatus('error', 'Error al procesar el archivo: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showStatus(type, msg) {
+    statusEl.className = 'status ' + type;
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+  }
+</script>
+</body>
+</html>
