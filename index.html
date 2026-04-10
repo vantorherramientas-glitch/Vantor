@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vantor — Consulta de Precios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="data.js"></script>
+<style>
+  :root {
+    --teal: #2A7479;
+    --teal-bright: #3A8F95;
+    --teal-dark: #1E5A5E;
+    --bg: #0E1A1F;
+    --bg-card: #152329;
+    --bg-input: #1C2D33;
+    --border: #2A3F46;
+    --text: #F5F5F5;
+    --text-muted: #9CAEB4;
+    --green: #3EBB6F;
+    --red: #E05555;
+    --amber: #E8A13A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px 60px;
+  }
+  .logo { text-align: center; margin-bottom: 40px; user-select: none; }
+  .logo .brand {
+    font-size: clamp(48px, 8vw, 88px);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: var(--teal);
+    line-height: 1;
+  }
+  .logo .tagline {
+    font-size: clamp(10px, 1.4vw, 14px);
+    font-weight: 400;
+    letter-spacing: 0.35em;
+    color: var(--text);
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+  .card {
+    width: 100%;
+    max-width: 720px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--teal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .field { margin-bottom: 20px; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  input, select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--text);
+    transition: all 0.2s;
+    outline: none;
+  }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%228%22%20viewBox%3D%220%200%2012%208%22%3E%3Cpath%20fill%3D%22%239CAEB4%22%20d%3D%22M6%208L0%200h12z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+  }
+  input:focus, select:focus {
+    border-color: var(--teal-bright);
+    box-shadow: 0 0 0 3px rgba(58,143,149,0.18);
+    background: var(--bg-card);
+  }
+  input[readonly] {
+    background: transparent;
+    border-color: transparent;
+    padding-left: 0;
+    font-weight: 500;
+    color: var(--text);
+    cursor: default;
+  }
+  input[readonly]:focus { box-shadow: none; background: transparent; }
+  .row-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .outputs {
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+  .output-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--teal);
+    transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2), box-shadow 0.25s, border-left-color 0.25s;
+  }
+  .output-row.flash {
+    animation: flash 0.6s ease-out;
+  }
+  @keyframes flash {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(58,143,149,0.5); }
+    40% { transform: scale(1.015); box-shadow: 0 0 0 6px rgba(58,143,149,0.15); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(58,143,149,0); }
+  }
+  .output-row.highlight {
+    border-left-color: var(--teal-bright);
+    background: linear-gradient(90deg, rgba(58,143,149,0.12), var(--bg-input));
+  }
+  .output-row.cost { border-left-color: var(--amber); }
+  .output-label { display: flex; flex-direction: column; }
+  .output-label .abbr {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal-bright);
+    letter-spacing: 0.08em;
+  }
+  .output-row.cost .output-label .abbr { color: var(--amber); }
+  .output-label .full {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .output-value {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .empty-value { color: var(--text-muted); font-weight: 400; font-size: 15px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--teal);
+    border: 1px solid var(--teal);
+    color: #fff;
+    padding: 13px 22px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--teal-bright);
+    border-color: var(--teal-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(58,143,149,0.25);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(58,143,149,0.2);
+    transition-duration: 0.05s;
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(58,143,149,0.4);
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-outline {
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .btn-outline:hover:not(:disabled) {
+    background: rgba(58,143,149,0.08);
+    border-color: var(--teal);
+    color: var(--teal-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  }
+  .btn-danger-outline {
+    background: transparent;
+    color: var(--red);
+    border-color: rgba(224,85,85,0.4);
+  }
+  .btn-danger-outline:hover:not(:disabled) {
+    background: rgba(224,85,85,0.1);
+    border-color: var(--red);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(224,85,85,0.2);
+    color: var(--red);
+  }
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .btn-row .btn { flex: 1 1 140px; min-width: 0; }
+
+  /* Pack table */
+  .pack-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .pack-list { display: flex; flex-direction: column; gap: 10px; }
+  .pack-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    border-left: 3px solid var(--teal);
+    animation: slideIn 0.3s cubic-bezier(.2,.9,.3,1.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .pack-item:hover { transform: translateX(2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .pack-item-info { min-width: 0; }
+  .pack-item-desc {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pack-item-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+  .pack-qty {
+    width: 64px;
+    padding: 9px 10px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .pack-subtotal {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    min-width: 105px;
+    text-align: right;
+  }
+  .pack-remove {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s, transform 0.15s;
+  }
+  .pack-remove:hover { color: var(--red); background: rgba(224,85,85,0.1); transform: scale(1.1); }
+  .pack-remove:active { transform: scale(0.95); }
+
+  .pack-totals { margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--border); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--teal);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 10px;
+    margin-left: 8px;
+    min-width: 20px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal-bright);
+    color: var(--text);
+    padding: 14px 22px;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s cubic-bezier(.2,.9,.3,1.2);
+    z-index: 9999;
+    max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-left-color: var(--green); }
+  .toast.error { border-left-color: var(--red); }
+
+  /* Admin panel */
+  .admin-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+  .admin-toggle:hover { border-color: var(--teal); color: var(--teal-bright); }
+  .admin-panel { display: none; width: 100%; max-width: 720px; }
+  .admin-panel.open { display: block; }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--teal-bright);
+    background: rgba(58,143,149,0.06);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .drop-icon { font-size: 40px; margin-bottom: 12px; display: block; color: var(--teal); }
+  .drop-text { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .drop-hint { font-size: 12px; color: var(--text-muted); }
+  .status {
+    margin-top: 16px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+  }
+  .status.success {
+    display: block;
+    background: rgba(62,187,111,0.1);
+    border: 1px solid rgba(62,187,111,0.3);
+    color: var(--green);
+  }
+  .status.error {
+    display: block;
+    background: rgba(224,85,85,0.1);
+    border: 1px solid rgba(224,85,85,0.3);
+    color: var(--red);
+  }
+  .instructions {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .instructions h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+  }
+  .instructions ol { list-style: none; counter-reset: steps; padding: 0; }
+  .instructions li {
+    counter-increment: steps;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    padding-left: 32px;
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .instructions li::before {
+    content: counter(steps);
+    position: absolute;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    background: var(--teal-dark);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    top: 1px;
+    text-align: center;
+    line-height: 22px;
+  }
+
+  .product-count {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  .footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 20px 14px 50px; }
+    .logo { margin-bottom: 28px; }
+    .card { padding: 22px 18px; border-radius: 14px; }
+    .card-title { font-size: 15px; margin-bottom: 22px; padding-bottom: 12px; }
+    .row-info { grid-template-columns: 1fr; gap: 14px; }
+    .field { margin-bottom: 16px; }
+    input, select { padding: 13px 14px; font-size: 15px; }
+    .output-row { padding: 14px 16px; }
+    .output-value { font-size: 16px; }
+    .output-label .abbr { font-size: 12px; }
+    .output-label .full { font-size: 10px; }
+
+    .pack-item {
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      padding: 12px 14px;
+    }
+    .pack-item-info { grid-column: 1 / 2; grid-row: 1; }
+    .pack-remove  { grid-column: 2; grid-row: 1; align-self: start; }
+    .pack-qty     { grid-column: 1; grid-row: 2; width: 70px; justify-self: start; }
+    .pack-subtotal{ grid-column: 2; grid-row: 2; min-width: 0; align-self: center; }
+
+    .btn { padding: 13px 16px; font-size: 12px; letter-spacing: 0.06em; }
+    .btn-row { gap: 8px; }
+    .btn-row .btn { flex: 1 1 calc(50% - 4px); }
+    .toast { bottom: 18px; font-size: 12px; padding: 12px 18px; }
+  }
+  @media (max-width: 380px) {
+    .btn-row .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="logo">
+    <div class="brand">VANTOR</div>
+    <div class="tagline">Maquinas &amp; Herramientas</div>
+  </div>
+
+  <!-- Main consultation card -->
+  <div class="card">
+    <div class="card-title">Consulta de Precios</div>
+    <div class="product-count" id="productCount"></div>
+
+    <div class="field">
+      <label for="marcaFilter">Marca</label>
+      <select id="marcaFilter">
+        <option value="">Todas las marcas</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="producto">Producto</label>
+      <input list="productos-list" id="producto" placeholder="Escriba para buscar..." autocomplete="off">
+      <datalist id="productos-list"></datalist>
+    </div>
+
+    <div class="row-info">
+      <div class="field">
+        <label>Marca</label>
+        <input type="text" id="marca" readonly placeholder="—">
+      </div>
+      <div class="field">
+        <label>Código</label>
+        <input type="text" id="codigo" readonly placeholder="—">
+      </div>
+    </div>
+
+    <div class="outputs">
+      <div class="output-row cost">
+        <div class="output-label">
+          <span class="abbr">COSTO</span>
+          <span class="full">Costo c/Purpil</span>
+        </div>
+        <div class="output-value empty-value" id="costo">—</div>
+      </div>
+      <div class="output-row">
+        <div class="output-label">
+          <span class="abbr">P.N.P.</span>
+          <span class="full">Precio Negro Público</span>
+        </div>
+        <div class="output-value empty-value" id="pnp">—</div>
+      </div>
+      <div class="output-row highlight">
+        <div class="output-label">
+          <span class="abbr">P.F.P.</span>
+          <span class="full">Precio Facturado Público</span>
+        </div>
+        <div class="output-value empty-value" id="pfp">—</div>
+      </div>
+      <div class="output-row">
+        <div class="output-label">
+          <span class="abbr">GCIA.</span>
+          <span class="full">Ganancia</span>
+        </div>
+        <div class="output-value empty-value" id="gcia">—</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="addToPackBtn" disabled>＋ Agregar al pack</button>
+    </div>
+  </div>
+
+  <!-- Pack builder card -->
+  <div class="card">
+    <div class="card-title">Pack / Presupuesto<span class="badge" id="packBadge" style="display:none;">0</span></div>
+    <div class="product-count" id="currentBudgetLabel">Presupuesto nuevo (sin guardar)</div>
+
+    <div id="packEmpty" class="pack-empty">
+      Todavía no agregaste productos.<br>Buscá un producto arriba y tocá <strong>Agregar al pack</strong>.
+    </div>
+
+    <div id="packContainer" style="display:none;">
+      <div class="pack-list" id="packList"></div>
+
+      <div class="pack-totals">
+        <div class="output-row cost">
+          <div class="output-label">
+            <span class="abbr">COSTO TOTAL</span>
+            <span class="full">Costo del pack</span>
+          </div>
+          <div class="output-value" id="totalCosto">—</div>
+        </div>
+        <div class="output-row">
+          <div class="output-label">
+            <span class="abbr">P.N.P. TOTAL</span>
+            <span class="full">Precio Negro Público</span>
+          </div>
+          <div class="output-value" id="totalPnp">—</div>
+        </div>
+        <div class="output-row highlight">
+          <div class="output-label">
+            <span class="abbr">P.F.P. TOTAL</span>
+            <span class="full">Precio Facturado Público</span>
+          </div>
+          <div class="output-value" id="totalPfp">—</div>
+        </div>
+        <div class="output-row">
+          <div class="output-label">
+            <span class="abbr">GCIA. TOTAL</span>
+            <span class="full">Ganancia del pack</span>
+          </div>
+          <div class="output-value" id="totalGcia">—</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="exportPdfBtn">⬇ Descargar PDF</button>
+        <button class="btn btn-outline" id="saveBudgetBtn">💾 Guardar</button>
+        <button class="btn btn-outline" id="newBudgetBtn">✛ Nuevo</button>
+        <button class="btn btn-danger-outline" id="clearPackBtn">Vaciar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Presupuestos guardados -->
+  <div class="card">
+    <div class="card-title">Presupuestos Guardados</div>
+    <div id="savedEmpty" class="pack-empty">
+      No hay presupuestos guardados todavía.<br>
+      Los presupuestos se guardan en este navegador.
+    </div>
+    <div class="pack-list" id="savedList"></div>
+  </div>
+
+  <!-- Admin toggle -->
+  <button class="admin-toggle" id="adminToggle">⚙ Actualizar Precios</button>
+
+  <!-- Admin panel -->
+  <div class="admin-panel" id="adminPanel">
+    <div class="card">
+      <div class="card-title">Actualizar Base de Datos</div>
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <span class="drop-icon">📊</span>
+        <div class="drop-text">Arrastrá tu Excel aquí o hacé click para seleccionar</div>
+        <div class="drop-hint">Debe tener la hoja "Por Publicar" con: Código, Descripción, Marca, Costo c/Purpil, Precio NEGRO Publico, Ganancia, Precio Facturado Publico</div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="instructions">
+        <h3>¿Cómo funciona?</h3>
+        <ol>
+          <li>Editá los precios en tu Excel (hoja "Por Publicar")</li>
+          <li>Subí el archivo Excel acá arriba</li>
+          <li>Se descargará un nuevo archivo <strong>data.js</strong></li>
+          <li>Reemplazá el <strong>data.js</strong> viejo en la carpeta por el nuevo</li>
+          <li>Recargá la página (F5) y listo — precios actualizados</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Vantor © Sistema de consulta interna</div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // ── Formateo ──
+  const fmt = new Intl.NumberFormat('es-AR', {
+    style: 'currency', currency: 'ARS',
+    minimumFractionDigits: 0, maximumFractionDigits: 0
+  });
+  const money = n => fmt.format(Math.ceil(n));
+
+  // ── Toast ──
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function toast(msg, type = 'success') {
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.className = 'toast ' + type; }, 2600);
+  }
+
+  // ── Cargar productos ──
+  const byDesc = new Map();
+  PRODUCTS.forEach(p => byDesc.set(p.descripcion, p));
+
+  // ── Marcas ──
+  const marcaFilter = document.getElementById('marcaFilter');
+  const marcas = Array.from(new Set(PRODUCTS.map(p => p.marca).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es'));
+  marcas.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    marcaFilter.appendChild(o);
+  });
+
+  // ── Datalist ──
+  const datalist = document.getElementById('productos-list');
+  function populateDatalist() {
+    const marcaSel = marcaFilter.value;
+    datalist.innerHTML = '';
+    const filtered = marcaSel
+      ? PRODUCTS.filter(p => p.marca === marcaSel)
+      : PRODUCTS;
+    filtered.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.descripcion;
+      datalist.appendChild(o);
+    });
+    document.getElementById('productCount').textContent =
+      filtered.length + (marcaSel ? ' productos de ' + marcaSel : ' productos cargados');
+  }
+  populateDatalist();
+
+  marcaFilter.addEventListener('change', () => {
+    // Limpiar búsqueda actual si ya no pertenece a la marca
+    const cur = byDesc.get(input.value);
+    if (marcaFilter.value && (!cur || cur.marca !== marcaFilter.value)) {
+      input.value = '';
+      clearSelection();
+    }
+    populateDatalist();
+  });
+
+  // ── Consulta ──
+  const input = document.getElementById('producto');
+  const marcaEl = document.getElementById('marca');
+  const codigoEl = document.getElementById('codigo');
+  const costoEl = document.getElementById('costo');
+  const pnpEl = document.getElementById('pnp');
+  const pfpEl = document.getElementById('pfp');
+  const gciaEl = document.getElementById('gcia');
+  const addBtn = document.getElementById('addToPackBtn');
+
+  let currentProduct = null;
+
+  function clearSelection() {
+    currentProduct = null;
+    marcaEl.value = '';
+    codigoEl.value = '';
+    [costoEl, pnpEl, pfpEl, gciaEl].forEach(el => {
+      el.textContent = '—';
+      el.classList.add('empty-value');
+    });
+    addBtn.disabled = true;
+  }
+
+  function update() {
+    const p = byDesc.get(input.value);
+    if (!p) { clearSelection(); return; }
+    currentProduct = p;
+    marcaEl.value = p.marca;
+    codigoEl.value = p.codigo;
+    costoEl.textContent = money(p.costo || 0);
+    pnpEl.textContent = money(p.pnp);
+    pfpEl.textContent = money(p.pfp);
+    gciaEl.textContent = money(p.gcia);
+    [costoEl, pnpEl, pfpEl, gciaEl].forEach(el => el.classList.remove('empty-value'));
+    addBtn.disabled = false;
+  }
+  input.addEventListener('input', update);
+  input.addEventListener('change', update);
+
+  // ── Pack builder ──
+  const pack = []; // { codigo, descripcion, marca, costo, pnp, pfp, gcia, qty }
+  const packList = document.getElementById('packList');
+  const packEmpty = document.getElementById('packEmpty');
+  const packContainer = document.getElementById('packContainer');
+  const totalCostoEl = document.getElementById('totalCosto');
+  const totalPnpEl = document.getElementById('totalPnp');
+  const totalPfpEl = document.getElementById('totalPfp');
+  const totalGciaEl = document.getElementById('totalGcia');
+
+  addBtn.addEventListener('click', () => {
+    if (!currentProduct) return;
+    const existing = pack.find(it => it.codigo === currentProduct.codigo);
+    if (existing) {
+      existing.qty += 1;
+      toast('Cantidad actualizada en el pack');
+    } else {
+      pack.push({
+        codigo: currentProduct.codigo,
+        descripcion: currentProduct.descripcion,
+        marca: currentProduct.marca,
+        costo: currentProduct.costo || 0,
+        pnp: currentProduct.pnp || 0,
+        pfp: currentProduct.pfp || 0,
+        gcia: currentProduct.gcia || 0,
+        qty: 1,
+      });
+      toast('Agregado al pack');
+    }
+    renderPack();
+    // flash highlight on totals
+    document.querySelectorAll('.pack-totals .output-row').forEach(el => {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+    });
+  });
+
+  function renderPack() {
+    const badge = document.getElementById('packBadge');
+    const totalQty = pack.reduce((s, it) => s + it.qty, 0);
+    if (totalQty > 0) {
+      badge.textContent = totalQty;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+    if (pack.length === 0) {
+      packEmpty.style.display = 'block';
+      packContainer.style.display = 'none';
+      return;
+    }
+    packEmpty.style.display = 'none';
+    packContainer.style.display = 'block';
+
+    packList.innerHTML = '';
+    pack.forEach((it, i) => {
+      const row = document.createElement('div');
+      row.className = 'pack-item';
+      row.innerHTML = `
+        <div class="pack-item-info">
+          <div class="pack-item-desc">${escapeHtml(it.descripcion)}</div>
+          <div class="pack-item-meta">${escapeHtml(it.marca)} · ${escapeHtml(it.codigo)}</div>
+        </div>
+        <input type="number" class="pack-qty" min="1" step="1" value="${it.qty}" data-i="${i}">
+        <div class="pack-subtotal">${money(it.pfp * it.qty)}</div>
+        <button class="pack-remove" data-i="${i}" title="Quitar">×</button>
+      `;
+      packList.appendChild(row);
+    });
+
+    // Totales
+    const tot = pack.reduce((acc, it) => {
+      acc.costo += it.costo * it.qty;
+      acc.pnp   += it.pnp   * it.qty;
+      acc.pfp   += it.pfp   * it.qty;
+      acc.gcia  += it.gcia  * it.qty;
+      return acc;
+    }, { costo:0, pnp:0, pfp:0, gcia:0 });
+
+    totalCostoEl.textContent = money(tot.costo);
+    totalPnpEl.textContent   = money(tot.pnp);
+    totalPfpEl.textContent   = money(tot.pfp);
+    totalGciaEl.textContent  = money(tot.gcia);
+
+    // Bind eventos de cantidad y quitar
+    packList.querySelectorAll('.pack-qty').forEach(inp => {
+      inp.addEventListener('input', e => {
+        const i = parseInt(e.target.dataset.i, 10);
+        let v = parseInt(e.target.value, 10);
+        if (isNaN(v) || v < 1) v = 1;
+        pack[i].qty = v;
+        renderPack();
+      });
+    });
+    packList.querySelectorAll('.pack-remove').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const i = parseInt(e.currentTarget.dataset.i, 10);
+        pack.splice(i, 1);
+        renderPack();
+      });
+    });
+  }
+
+  document.getElementById('clearPackBtn').addEventListener('click', () => {
+    if (pack.length === 0) return;
+    if (!confirm('¿Vaciar el pack completo?')) return;
+    pack.length = 0;
+    currentBudgetId = null;
+    updateBudgetLabel();
+    renderPack();
+  });
+
+  document.getElementById('saveBudgetBtn').addEventListener('click', () => {
+    if (pack.length === 0) { toast('El pack está vacío', 'error'); return; }
+    const id = saveBudget();
+    if (id) toast('Presupuesto guardado como N° ' + id);
+  });
+
+  document.getElementById('newBudgetBtn').addEventListener('click', () => {
+    if (pack.length > 0 && !confirm('¿Empezar un presupuesto nuevo? Se perderá el pack actual si no lo guardaste.')) return;
+    newBudget();
+    toast('Presupuesto nuevo iniciado');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // ── Presupuestos guardados (localStorage) ──
+  const STORAGE_KEY = 'vantor_budgets_v1';
+  const COUNTER_KEY = 'vantor_budget_counter_v1';
+  let currentBudgetId = null; // null = presupuesto nuevo sin guardar
+
+  function loadBudgets() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch { return []; }
+  }
+  function saveBudgetsList(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+  function nextBudgetNumber() {
+    const n = parseInt(localStorage.getItem(COUNTER_KEY) || '0', 10) + 1;
+    localStorage.setItem(COUNTER_KEY, String(n));
+    return String(n).padStart(4, '0');
+  }
+  function saveBudget(forcedId) {
+    if (pack.length === 0) return null;
+    const list = loadBudgets();
+    const id = forcedId || currentBudgetId || nextBudgetNumber();
+    const existing = list.findIndex(b => b.id === id);
+    const entry = {
+      id,
+      updatedAt: new Date().toISOString(),
+      createdAt: existing >= 0 ? list[existing].createdAt : new Date().toISOString(),
+      items: pack.map(it => ({ ...it })),
+    };
+    if (existing >= 0) list[existing] = entry;
+    else list.push(entry);
+    saveBudgetsList(list);
+    currentBudgetId = id;
+    renderSavedBudgets();
+    updateBudgetLabel();
+    return id;
+  }
+  function deleteBudget(id) {
+    const list = loadBudgets().filter(b => b.id !== id);
+    saveBudgetsList(list);
+    if (currentBudgetId === id) { currentBudgetId = null; updateBudgetLabel(); }
+    renderSavedBudgets();
+  }
+  function loadBudgetIntoPack(id) {
+    const b = loadBudgets().find(x => x.id === id);
+    if (!b) return;
+    pack.length = 0;
+    b.items.forEach(it => pack.push({ ...it }));
+    currentBudgetId = id;
+    updateBudgetLabel();
+    renderPack();
+    toast('Presupuesto N° ' + id + ' cargado');
+    const cards = document.querySelectorAll('.card');
+    // 2da card es el pack
+    if (cards[1]) cards[1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function newBudget() {
+    pack.length = 0;
+    currentBudgetId = null;
+    updateBudgetLabel();
+    renderPack();
+  }
+  function updateBudgetLabel() {
+    const el = document.getElementById('currentBudgetLabel');
+    if (!el) return;
+    el.textContent = currentBudgetId
+      ? 'Editando presupuesto N° ' + currentBudgetId
+      : 'Presupuesto nuevo (sin guardar)';
+  }
+  function renderSavedBudgets() {
+    const list = loadBudgets().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+    const container = document.getElementById('savedList');
+    const empty = document.getElementById('savedEmpty');
+    if (list.length === 0) {
+      container.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    container.innerHTML = '';
+    list.forEach(b => {
+      const total = b.items.reduce((s, it) => s + (it.pfp || 0) * it.qty, 0);
+      const count = b.items.reduce((s, it) => s + it.qty, 0);
+      const d = new Date(b.updatedAt);
+      const fecha = d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      const row = document.createElement('div');
+      row.className = 'pack-item';
+      row.innerHTML = `
+        <div class="pack-item-info">
+          <div class="pack-item-desc">N° ${b.id} · ${count} ítem${count!==1?'s':''}</div>
+          <div class="pack-item-meta">${fecha} · ${money(total)}</div>
+        </div>
+        <button class="btn btn-outline" data-load="${b.id}" style="padding:8px 14px;font-size:11px;">Cargar</button>
+        <button class="pack-remove" data-del="${b.id}" title="Eliminar">×</button>
+      `;
+      container.appendChild(row);
+    });
+    container.querySelectorAll('[data-load]').forEach(btn => {
+      btn.addEventListener('click', e => loadBudgetIntoPack(e.currentTarget.dataset.load));
+    });
+    container.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const id = e.currentTarget.dataset.del;
+        if (confirm('¿Eliminar el presupuesto N° ' + id + '?')) {
+          deleteBudget(id);
+          toast('Presupuesto N° ' + id + ' eliminado', 'error');
+        }
+      });
+    });
+  }
+
+  // ── Exportar PDF ──
+  document.getElementById('exportPdfBtn').addEventListener('click', () => {
+    if (pack.length === 0) return;
+    const budgetNum = currentBudgetId || nextBudgetNumber();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginX = 40;
+
+    // Encabezado
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(28);
+    doc.setTextColor(42, 116, 121); // teal
+    doc.text('VANTOR', marginX, 60);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text('MAQUINAS & HERRAMIENTAS', marginX, 76);
+
+    // Título presupuesto
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(30, 30, 30);
+    doc.text('PRESUPUESTO', pageW - marginX, 60, { align: 'right' });
+
+    const now = new Date();
+    const fecha = now.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const hora  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Fecha: ' + fecha + '  ' + hora, pageW - marginX, 78, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(42, 116, 121);
+    doc.text('N° ' + budgetNum, pageW - marginX, 92, { align: 'right' });
+
+    // Línea
+    doc.setDrawColor(42, 116, 121);
+    doc.setLineWidth(1.2);
+    doc.line(marginX, 102, pageW - marginX, 102);
+
+    // Tabla de items (precios al público = P.F.P.)
+    const body = pack.map(it => [
+      it.codigo,
+      it.descripcion + (it.marca ? '\n' + it.marca : ''),
+      String(it.qty),
+      money(it.pfp),
+      money(it.pfp * it.qty),
+    ]);
+
+    const totalPfp = pack.reduce((s, it) => s + it.pfp * it.qty, 0);
+    const totalPnp = pack.reduce((s, it) => s + it.pnp * it.qty, 0);
+
+    doc.autoTable({
+      startY: 120,
+      head: [['Código', 'Descripción', 'Cant.', 'P. Unitario', 'Subtotal']],
+      body: body,
+      margin: { left: marginX, right: marginX },
+      styles: {
+        font: 'helvetica',
+        fontSize: 9,
+        cellPadding: 7,
+        textColor: [40, 40, 40],
+        lineColor: [220, 220, 220],
+        lineWidth: 0.5,
+      },
+      headStyles: {
+        fillColor: [42, 116, 121],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9,
+        halign: 'left',
+      },
+      columnStyles: {
+        0: { cellWidth: 75 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 40, halign: 'center' },
+        3: { cellWidth: 85, halign: 'right' },
+        4: { cellWidth: 90, halign: 'right' },
+      },
+      alternateRowStyles: { fillColor: [247, 249, 250] },
+    });
+
+    let y = doc.lastAutoTable.finalY + 20;
+
+    // Totales (solo precio al público en el PDF del cliente)
+    const totalsX = pageW - marginX;
+    const amountColW = 120;
+    const labelX = totalsX - amountColW - 10;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text('Precio Negro (efectivo):', labelX, y, { align: 'right' });
+    doc.setTextColor(40, 40, 40);
+    doc.text(money(totalPnp), totalsX, y, { align: 'right' });
+
+    y += 24;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(42, 116, 121);
+    doc.text('TOTAL FACTURADO:', labelX, y, { align: 'right' });
+    doc.setFontSize(13);
+    doc.text(money(totalPfp), totalsX, y, { align: 'right' });
+
+    // Línea final
+    y += 10;
+    doc.setDrawColor(42, 116, 121);
+    doc.setLineWidth(1);
+    doc.line(marginX, y, pageW - marginX, y);
+
+    // Pie
+    y += 26;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Presupuesto válido por 7 días. Precios sujetos a modificación sin previo aviso.', marginX, y);
+    y += 12;
+    doc.text('Vantor — Máquinas & Herramientas', marginX, y);
+
+    const stamp = now.toISOString().slice(0,10);
+    doc.save(`Presupuesto_Vantor_${budgetNum}_${stamp}.pdf`);
+    saveBudget(budgetNum);
+    toast('PDF N° ' + budgetNum + ' descargado');
+  });
+
+  // ── Admin panel toggle ──
+  document.getElementById('adminToggle').addEventListener('click', () => {
+    document.getElementById('adminPanel').classList.toggle('open');
+  });
+
+  // ── Drop zone ──
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const statusEl = document.getElementById('status');
+
+  ['dragenter','dragover'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragover'); });
+  });
+  dropZone.addEventListener('drop', ev => {
+    const file = ev.dataTransfer.files[0];
+    if (file) processFile(file);
+  });
+  fileInput.addEventListener('change', ev => {
+    const file = ev.target.files[0];
+    if (file) processFile(file);
+  });
+
+  function processFile(file) {
+    statusEl.className = 'status';
+    statusEl.style.display = 'none';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheetName = workbook.SheetNames.find(n => n.toLowerCase().includes('por publicar'));
+        if (!sheetName) {
+          showStatus('error', 'No se encontró la hoja "Por Publicar" en el archivo.');
+          return;
+        }
+
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        if (rows.length === 0) {
+          showStatus('error', 'La hoja "Por Publicar" está vacía.');
+          return;
+        }
+
+        const products = [];
+        for (const r of rows) {
+          const desc = (r['Descripción'] || '').toString().trim();
+          if (!desc) continue;
+          products.push({
+            codigo: (r['Código'] || '').toString(),
+            descripcion: desc,
+            marca: (r['Marca'] || '').toString(),
+            costo: parseFloat(r['Costo c/Purpil']) || 0,
+            pnp: parseFloat(r['Precio NEGRO Publico']) || 0,
+            pfp: parseFloat(r['Precio Facturado Publico']) || 0,
+            gcia: parseFloat(r['Ganancia']) || 0,
+          });
+        }
+
+        if (products.length === 0) {
+          showStatus('error', 'No se encontraron productos válidos. Verificá los nombres de las columnas.');
+          return;
+        }
+
+        const jsContent = 'const PRODUCTS = ' + JSON.stringify(products, null, 0) + ';';
+
+        const blob = new Blob([jsContent], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'data.js';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showStatus('success', '✓ ' + products.length + ' productos exportados. Reemplazá el archivo data.js en la carpeta y recargá la página.');
+
+      } catch(err) {
+        showStatus('error', 'Error al procesar el archivo: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showStatus(type, msg) {
+    statusEl.className = 'status ' + type;
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+  }
+
+  // ── Inicialización (al final, cuando todo está declarado) ──
+  renderSavedBudgets();
+  updateBudgetLabel();
+</script>
+</body>
+</html>
